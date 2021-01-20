@@ -1,0 +1,411 @@
+import os
+import datetime
+
+
+class BankAccount:
+    """
+    This class represents a bank account.
+    """
+
+    def __init__(self, id, bank_name='', account_type='', balance=0, last_access=''):
+        """
+        Creates a bank account.
+
+        :param id: Account ID
+        :param bank_name: Bank name
+        :param account_type: Account type (savings, chequing, etc.)
+        :param balance: Opening balance
+        :param last_access: Last access date time
+        """
+
+        self.id = id
+        self.bank_name = bank_name
+        self.type = account_type
+        self.balance = balance
+        self.last_access = last_access
+
+    def print_details(self):
+        """
+        Prints details of the bank account
+        """
+
+        print("Account ID: {}".format(self.id))
+        print("Bank Name: {}".format(self.bank_name))
+        print("Account Type: {}".format(self.type))
+        print("Balance: {:.2f}".format(self.balance))
+        print("Last Accessed: {}".format(self.last_access))
+
+    def deposit(self, amount):
+        """
+        Deposit amount into the bank account.
+
+        :param amount: Amount to deposit
+        """
+
+        self.balance += amount
+        self.last_access = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def withdraw(self, amount):
+        """
+        Withdraw amount from the bank account.
+
+        :param amount: Amount to withdraw
+        :return: True on success, False on failure
+        """
+
+        if self.balance - amount < 0:
+            print("Account can not have negative balance. Withdraw cancelled.")
+            return False
+        self.balance -= amount
+        self.last_access = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return True
+
+
+class AccountManager:
+    """
+    This class represents an Account Manager which manages multiple bank accounts
+    for the user.
+    """
+
+    def __init__(self):
+        """
+        Initialize bank account manager and creates initial log file.
+
+        * Dictionary Or List?
+        The bank accounts are stored in a Python dictionary with following format.
+        {id1: BankAccount_object, id2: BankAccount_object, ...}
+
+        * Why?
+        If we would have used a list, it would require to loop through the list to search
+         a bank account. In case of the dictionary, we can directly access the account
+         using account ID.
+        """
+
+        self.accounts = {}
+        self.log_file = "MyAccounts.txt"
+        self.create_log_file()
+
+    def create_log_file(self):
+        """
+        Create a log file with header.
+        """
+
+        # if os.path.exists(self.log_file):
+        #     return
+
+        with open(self.log_file, 'w') as f:
+            f.write("{}\n".format('=' * 71))
+            f.write("Date & Time          Account ID  Transaction Type    Amount     Balance\n")
+            f.write("{}\n".format('=' * 71))
+
+    def log(self, account, transaction_type, amount):
+        """
+        Log transaction entry into log file.
+
+        :param account: BankAccount object
+        :param transaction_type: Transaction type
+        :param amount: Transaction amount
+        """
+
+        with open(self.log_file, 'a') as f:
+            f.write("{}  {:<10}  {:<15}  {:>9.2f}  {:>10.2f}\n".format(
+                account.last_access,
+                account.id,
+                transaction_type,
+                amount,
+                account.balance)
+            )
+
+    def input_id(self):
+        """
+        Ask user to input bank account ID. Show message on invalid input.
+
+        :return: Bank account ID
+        """
+
+        id = -1
+        while id <= 0:
+            id = input("Enter account ID: ")
+            try:
+                id = int(id)
+            except:
+                print("Invalid ID. Try Again.\n")
+                id = -1
+        return id
+
+    def input_amount(self):
+        """
+        Ask user to input amount. Show message on invalid input.
+
+        :return: Amount entered by user
+        """
+
+        amount = -1
+        while amount <= 0:
+            amount = input("Enter amount: ")
+            try:
+                amount = float(amount)
+            except:
+                print("Invalid amount. Try Again.\n")
+                amount = -1
+        return amount
+
+    def input_account_type(self):
+        """
+        Ask user to input bank account type. Show message on invalid input.
+
+        :return: Bank account type input by user
+        """
+
+        valid_types = ['chequing', 'saving', 'investment', 'loan', 'TFSA', 'RRSP']
+        account_type = None
+
+        while account_type not in valid_types:
+            account_type = input("Enter account type: ").lower()
+
+            if account_type not in valid_types:
+                print("Invalid account type.")
+                # show list of available options
+                print("Must be one of these: {}\n".format(', '.join(valid_types)))
+
+        return account_type
+
+    def create_account(self):
+        """
+        Create a bank account with the details entered by user.
+        """
+
+        id = self.input_id()
+
+        # show error if bank account already exists
+        if id in self.accounts:
+            print("Bank account with this ID already exists.")
+            return
+
+        bank_name = input("Enter bank name: ")
+        account_type = self.input_account_type()
+
+        account = BankAccount(id, bank_name, account_type)
+        self.accounts[id] = account
+        print("Account created successfully.")
+
+    def withdraw(self):
+        """
+        Withdraw user specified amount from the user specified bank account.
+        """
+
+        id = self.input_id()
+
+        # show error if bank account does not exist
+        if id not in self.accounts:
+            print("Bank account with this ID does not exist.")
+            return
+        account = self.accounts[id]
+
+        amount = self.input_amount()
+        result = account.withdraw(amount)
+
+        # log transaction only if withdrawal was successful
+        # withdrawal can fail if balance goes negative
+        if result is True:
+            self.log(account, "Withdrawal", amount)
+            print("Withdrawal successful.")
+
+    def deposit(self):
+        """
+        Deposit user specified amount to user specified bank account.
+        """
+
+        id = self.input_id()
+
+        # show error if bank account does not exist
+        if id not in self.accounts:
+            print("Bank account with this ID does not exist.")
+            return
+        account = self.accounts[id]
+
+        amount = self.input_amount()
+        account.deposit(amount)
+        self.log(account, "Deposit", amount)  # log transaction
+        print("Deposit successful.")
+
+    def transfer(self):
+        """
+        Transfer amount from one bank account to another.
+        """
+
+        print("(Sender) ", end='')
+        from_id = self.input_id()
+
+        # show error if account 1 does not exist
+        if from_id not in self.accounts:
+            print("Bank account with this ID does not exist.")
+            return
+        from_account = self.accounts[from_id]
+
+        print("(Receiver) ", end='')
+        to_id = self.input_id()
+
+        # show error if account 2 does not exist
+        if to_id not in self.accounts:
+            print("Bank account with this ID does not exist.")
+            return
+        to_account = self.accounts[to_id]
+
+        amount = self.input_amount()
+        result = from_account.withdraw(amount)
+
+        # cancel operation if withdrawal is unsuccessful
+        # withdrawal can fail if balance goes negative
+        if result is not True:
+            return
+
+        to_account.deposit(amount)
+
+        # log two transactions
+        self.log(from_account, "Withdrawal", amount)
+        self.log(to_account, "Deposit", amount)
+        print("Transfer successful.")
+
+    def compare_balances(self):
+        """
+        Compare balances of two accounts.
+        """
+
+        print("(Account 1) ", end='')
+        id1 = self.input_id()
+
+        # show error if account 1 does not exist
+        if id1 not in self.accounts:
+            print("Bank account with this ID does not exist.")
+            return
+        account1 = self.accounts[id1]
+
+        print("(Account 2) ", end='')
+        id2 = self.input_id()
+
+        # show error if account 2 does not exist
+        if id2 not in self.accounts:
+            print("Bank account with this ID does not exist.")
+            return
+        account2 = self.accounts[id2]
+
+        # show formatted comparison
+        print("\nAccount ID     Balance  |  Account ID     Balance")
+        print('-' * 49)
+        print("{:<10}  {:>10.2f}  |  {:<10}  {:>10.2f}".format(id1, account1.balance, id2, account2.balance))
+
+    def print_balance(self):
+        """
+        Print balance of user specified account.
+        """
+
+        id = self.input_id()
+
+        # show error if account does not exist
+        if id not in self.accounts:
+            print("Bank account with this ID does not exist.")
+            return
+        account = self.accounts[id]
+
+        print("Balance: {:.2f}".format(account.balance))
+
+    def show_account_details(self):
+        """
+        Show full details of user specified account.
+        """
+
+        id = self.input_id()
+
+        # show error if account does not exist
+        if id not in self.accounts:
+            print("Bank account with this ID does not exist.")
+            return
+        print()
+        self.accounts[id].print_details()
+
+    def delete_account(self):
+        """
+        Delete user specified bank account.
+        """
+
+        id = self.input_id()
+
+        # show error if account does not exist
+        if id not in self.accounts:
+            print("Bank account with this ID does not exist.")
+            return
+
+        del self.accounts[id]
+        print("Account deleted successfully.")
+
+    def print_log_file(self):
+        """
+        Print content of the log file.
+        """
+
+        print("\nLog File Content START\n")
+        with open(self.log_file, 'r') as f:
+            print(f.read())
+        print("Log File Content END\n")
+
+    def show_menu(self):
+        """
+        Display menu on the console.
+        """
+
+        print("\n---------- MENU ----------")
+        print(" 1. Create account")
+        print(" 2. Withdraw amount")
+        print(" 3. Deposit amount")
+        print(" 4. Transfer amount")
+        print(" 5. Compare balances")
+        print(" 6. Print balance")
+        print(" 7. Show account details")
+        print(" 8. Delete account")
+        print(" 9. Print log file")
+        print("10. Exit")
+
+    def serve(self):
+        """
+        Start application by showing menu and interact with user.
+        """
+
+        print("\n- ===================== -")
+        print("! BANK ACCOUNTS MANAGER !")
+        print("- ===================== -")
+
+        choice = '0'
+        while choice != '10':
+            self.show_menu()
+            choice = input("\nEnter your choice: ").strip()
+
+            if choice == '1':
+                self.create_account()
+            elif choice == '2':
+                self.withdraw()
+            elif choice == '3':
+                self.deposit()
+            elif choice == '4':
+                self.transfer()
+            elif choice == '5':
+                self.compare_balances()
+            elif choice == '6':
+                self.print_balance()
+            elif choice == '7':
+                self.show_account_details()
+            elif choice == '8':
+                self.delete_account()
+            elif choice == '9':
+                self.print_log_file()
+            elif choice != '10':
+                print("Invalid input. Try again.")
+
+        print("\n\n! THANK YOU !")
+
+
+# start application
+if __name__ == '__main__':
+    manager = AccountManager()
+    manager.serve()
+
